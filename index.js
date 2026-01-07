@@ -8,7 +8,7 @@ const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
 // 静态文件服务
-app.use(express.static(path.join(__dirname, '../public')));
+app.use(express.static(__dirname));
 
 // 房间管理
 const rooms = new Map();
