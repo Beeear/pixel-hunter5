@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Hunter: Online PK</title>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@1,700&family=Outfit:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --color-bg: #080A0F;
+            --color-p1: #FF375F;
+            --color-p2: #22FF00;
+            --color-glass: rgba(255, 255, 255, 0.05);
+            --color-border: rgba(255, 255, 255, 0.1);
+            --web-width: 1200px;
+            --web-height: 960px;
+            --grid-size: 400px;
+            --anim-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+            --font-main: 'Outfit', sans-serif; 
+            --font-title-pixel: 'Merriweather', serif; 
+            --font-title-hunter: 'Outfit', sans-serif; 
+        }
+
+        body {
+            margin: 0; padding: 0;
+            width: 100vw; height: 100vh;
+            background: var(--color-bg);
+            background-image: 
+                radial-gradient(circle at 10% 10%, rgba(255, 55, 95, 0.12) 0%, transparent 40%),
+                radial-gradient(circle at 90% 10%, rgba(48, 209, 88, 0.12) 0%, transparent 40%);
+            display: flex; justify-content: center; align-items: center;
+            font-family: var(--font-main);
+            color: white; overflow: hidden;
+        }
+
+        .stage {
+            width: var(--web-width);
+            height: var(--web-height);
+            display: flex;
+            position: relative;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--color-border);
+            border-radius: 48px;
+            box-shadow: 0 50px 100px rgba(0,0,0,0.6);
+        }
+
+        .player-arena {
+            flex: 1;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            position: relative;
+        }
+
+        .divider { width: 1px; height: 60%; background: linear-gradient(to bottom, transparent, var(--color-border), transparent); align-self: center; }
+
+        .score-box { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            margin-bottom: 10px;
+        }
+        .score-value { font-family: 'Merriweather', serif; font-size: 100px; font-weight: 700; font-style: italic; font-variant-numeric: tabular-nums; line-height: 1; }
+        .level-indicator { font-size: 14px; font-weight: 400; opacity: 0.5; margin-top: 8px; letter-spacing: 2px; }
+        .player-tag { font-size: 12px; font-weight: 700; letter-spacing: 3px; opacity: 0.6; margin-bottom: 10px; }
+
+        .grid-container {
+            width: var(--grid-size); height: var(--grid-size);
+            background: var(--color-glass);
+            backdrop-filter: blur(40px);
+            border: 1px solid var(--color-border);
+            border-radius: 36px; padding: 18px;
+            display: grid; gap: 12px;
+            position: relative;
+        }
+
+        .tile { border-radius: 22%; cursor: pointer; transition: transform 0.1s var(--anim-spring); position: relative; overflow: hidden; }
+        .tile::after { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent); }
+        .tile:active { transform: scale(0.94); }
+        
+        /* 对手区域禁用交互 */
+        .opponent-area { pointer-events: none; opacity: 0.7; }
+        .opponent-area .grid-container { filter: blur(2px); }
+
+        .overlay {
+            position: absolute; inset: 0; z-index: 100;
+            background: rgba(8, 10, 15, 0.94); backdrop-filter: blur(50px);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            transition: all 0.5s ease;
+        }
+
+        .brand-logo { text-align: center; margin-bottom: 60px; line-height: 0.9; }
+        .pixel-text { font-family: var(--font-title-pixel); font-weight: 700; font-style: italic; font-size: 110px; color: white; }
+        .hunter-text { font-family: var(--font-title-hunter); font-weight: 700; font-size: 110px; color: var(--color-p2); }
+
+        .menu-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .btn-action {
+            background: white; color: black; 
+            width: 280px; height: 70px;
+            font-size: 18px; font-weight: 700;
+            border-radius: 100px; border: none; cursor: pointer; transition: transform 0.2s;
+            font-family: var(--font-main);
+            display: flex; justify-content: center; align-items: center;
+        }
+        .btn-action:hover { transform: scale(1.05); }
+        
+        .btn-secondary {
+            background: transparent; color: white; 
+            width: 280px; height: 70px;
+            font-size: 18px; font-weight: 700;
+            border-radius: 100px; border: 2px solid rgba(255,255,255,0.3); cursor: pointer; 
+            transition: all 0.2s; font-family: var(--font-main);
+            display: flex; justify-content: center; align-items: center;
+        }
+        .btn-secondary:hover { background: rgba(255,255,255,0.1); transform: scale(1.05); }
+
+        /* 房间界面 */
+        .room-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .room-code {
+            font-family: 'Merriweather', serif;
+            font-size: 72px;
+            font-weight: 700;
+            font-style: italic;
+            letter-spacing: 12px;
+            color: var(--color-p2);
+            text-shadow: 0 0 40px rgba(34, 255, 0, 0.3);
+        }
+
+        .room-label {
+            font-size: 14px;
+            letter-spacing: 4px;
+            opacity: 0.5;
+        }
+
+        .room-input {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 100px;
+            padding: 20px 30px;
+            font-size: 24px;
+            font-family: 'Merriweather', serif;
+            font-weight: 700;
+            color: white;
+            text-align: center;
+            letter-spacing: 8px;
+            width: 280px;
+            height: 70px;
+            box-sizing: border-box;
+            text-transform: uppercase;
+        }
+        .room-input::placeholder { color: rgba(255,255,255,0.3); letter-spacing: 2px; }
+        .room-input:focus { outline: none; border-color: var(--color-p2); }
+
+        .status-text {
+            font-size: 16px;
+            opacity: 0.6;
+            letter-spacing: 2px;
+        }
+
+        .player-status {
+            display: flex;
+            gap: 60px;
+            margin: 30px 0;
+        }
+
+        .player-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            padding: 30px 50px;
+            background: var(--color-glass);
+            border: 1px solid var(--color-border);
+            border-radius: 24px;
+        }
+
+        .player-card.ready { border-color: var(--color-p2); box-shadow: 0 0 30px rgba(34, 255, 0, 0.2); }
+        .player-card.waiting { opacity: 0.4; }
+
+        .player-icon { font-size: 48px; }
+        .player-name { font-size: 14px; font-weight: 700; letter-spacing: 3px; }
+        .player-ready-status { font-size: 12px; letter-spacing: 2px; }
+
+        .ready-btn {
+            padding: 24px 100px; 
+            font-size: 18px; 
+            font-weight: 700; 
+            font-family: var(--font-main);
+            border-radius: 100px; 
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            background: rgba(255, 255, 255, 0.1); 
+            color: #fff; 
+            cursor: pointer;
+            letter-spacing: 2px;
+            backdrop-filter: blur(10px); 
+            transition: all 0.3s var(--anim-spring);
+        }
+        .ready-btn:hover { transform: scale(1.05); background: rgba(255, 255, 255, 0.2); }
+        .ready-btn.active { 
+            background: #FFFFFF; color: black; border-color: #FFFFFF;
+            transform: scale(1); box-shadow: 0 0 50px rgba(255,255,255,0.3); 
+            pointer-events: none;
+        }
+
+        #countdown {
+            font-family: 'Merriweather', serif;
+            font-size: 180px;
+            font-weight: 700;
+            font-style: italic;
+            position: absolute;
+            color: white;
+            display: none;
+            z-index: 101;
+        }
+
+        .result-title { font-family: var(--font-title-hunter); font-size: 80px; font-weight: 700; margin-bottom: 20px; }
+
+        .emoji-feedback {
+            position: absolute; pointer-events: none; font-size: 48px; z-index: 10;
+            animation: emojiFly 0.8s var(--anim-spring) forwards; opacity: 0;
+        }
+        @keyframes emojiFly {
+            0% { transform: translateY(0) scale(0.5); opacity: 0; }
+            30% { opacity: 1; }
+            100% { transform: translateY(-120px) scale(1.2); opacity: 0; }
+        }
+
+        .animate-shake { animation: shake 0.4s; }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+
+        .sound-toggle {
+            position: absolute; top: 24px; right: 24px;
+            width: 48px; height: 48px; border-radius: 50%;
+            background: var(--color-glass); border: 1px solid var(--color-border);
+            color: white; font-size: 20px; cursor: pointer;
+            display: flex; justify-content: center; align-items: center;
+            transition: all 0.2s ease; z-index: 200; backdrop-filter: blur(10px);
+        }
+        .sound-toggle:hover { background: rgba(255, 255, 255, 0.15); transform: scale(1.1); }
+        .sound-toggle.muted { opacity: 0.5; }
+
+        .error-msg {
+            color: var(--color-p1);
+            font-size: 14px;
+            margin-top: 10px;
+            min-height: 20px;
+        }
+
+        .copy-btn {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            padding: 8px 16px;
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: var(--font-main);
+        }
+        .copy-btn:hover { background: rgba(255,255,255,0.2); }
+
+        .connection-status {
+            position: absolute;
+            top: 24px;
+            left: 24px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            opacity: 0.6;
+        }
+        .connection-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #666;
+        }
+        .connection-dot.connected { background: var(--color-p2); }
+        .connection-dot.disconnected { background: var(--color-p1); }
+    </style>
+</head>
+<body>
+
+    <div class="stage">
+        <button class="sound-toggle" id="sound-toggle" onclick="toggleSound()">🔊</button>
+        
+        <div class="connection-status">
+            <div class="connection-dot" id="connection-dot"></div>
+            <span id="connection-text">未连接</span>
+        </div>
+
+        <!-- 页面 1: 主菜单 -->
+        <div class="overlay" id="start-screen">
+            <div class="brand-logo">
+                <div class="pixel-text">Pixel</div>
+                <div class="hunter-text">HUNTER</div>
+                <p style="opacity: 0.3; font-size: 12px; letter-spacing: 6px; margin-top: 20px; font-weight: 400;">ONLINE PK</p>
+            </div>
+            <div class="menu-container">
+                <button class="btn-action" onclick="Game.createRoom()">创建房间</button>
+                <button class="btn-secondary" onclick="Game.showJoinScreen()">加入房间</button>
+            </div>
+        </div>
+
+        <!-- 页面 2: 加入房间 -->
+        <div class="overlay" id="join-screen" style="display: none;">
+            <div class="room-container">
+                <div class="room-label">输入房间号</div>
+                <input type="text" class="room-input" id="room-input" placeholder="XXXXXX" maxlength="6">
+                <div class="error-msg" id="join-error"></div>
+                <button class="btn-action" onclick="Game.joinRoom()">加入</button>
+                <button class="btn-secondary" onclick="Game.backToMenu()">返回</button>
+            </div>
+        </div>
+
+        <!-- 页面 3: 等待房间 -->
+        <div class="overlay" id="room-screen" style="display: none;">
+            <div class="room-container">
+                <div class="room-label">房间号</div>
+                <div class="room-code" id="room-code">------</div>
+                <button class="copy-btn" onclick="Game.copyRoomCode()">复制房间号</button>
+                
+                <div class="player-status">
+                    <div class="player-card" id="player-a-card">
+                        <div class="player-icon">🎮</div>
+                        <div class="player-name" style="color: var(--color-p1)">PLAYER A</div>
+                        <div class="player-ready-status" id="player-a-status">等待中</div>
+                    </div>
+                    <div class="player-card waiting" id="player-b-card">
+                        <div class="player-icon">🎮</div>
+                        <div class="player-name" style="color: var(--color-p2)">PLAYER B</div>
+                        <div class="player-ready-status" id="player-b-status">等待加入...</div>
+                    </div>
+                </div>
+
+                <button class="ready-btn" id="ready-btn" onclick="Game.ready()">READY</button>
+                <div id="countdown"></div>
+            </div>
+        </div>
+
+        <!-- 页面 4: 结果界面 -->
+        <div class="overlay" id="result-screen" style="display: none;">
+            <div id="winner-tag" class="result-title">WINNER!</div>
+            <div style="display: flex; gap: 120px; margin-bottom: 60px;">
+                <div style="text-align: center;">
+                    <div style="color: var(--color-p1); font-size: 14px; font-weight: 700; letter-spacing: 2px;">PLAYER A</div>
+                    <div id="final-a-score" style="font-size: 80px; font-weight: 700;">0</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="color: var(--color-p2); font-size: 14px; font-weight: 700; letter-spacing: 2px;">PLAYER B</div>
+                    <div id="final-b-score" style="font-size: 80px; font-weight: 700;">0</div>
+                </div>
+            </div>
+            <button class="btn-action" onclick="Game.restart()">再来一局</button>
+        </div>
+
+        <!-- 游戏区域 -->
+        <div class="player-arena" id="p1-area">
+            <div class="player-tag" style="color: var(--color-p1)">PLAYER A</div>
+            <div class="score-box">
+                <div class="score-value" id="p1-score" style="color: var(--color-p1)">0</div>
+                <div class="level-indicator" id="p1-level-ui">Level 2 / 15</div>
+            </div>
+            <div class="grid-container" id="p1-grid"></div>
+        </div>
+        <div class="divider"></div>
+        <div class="player-arena" id="p2-area">
+            <div class="player-tag" style="color: var(--color-p2)">PLAYER B</div>
+            <div class="score-box">
+                <div class="score-value" id="p2-score" style="color: var(--color-p2)">0</div>
+                <div class="level-indicator" id="p2-level-ui">Level 2 / 15</div>
+            </div>
+            <div class="grid-container" id="p2-grid"></div>
+        </div>
+    </div>
+
+    <script>
+        // =====================
+        // 音效系统
+        // =====================
+        const SoundEngine = {
+            ctx: null,
+            enabled: true,
+            
+            init() {
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            },
+            
+            ensureContext() {
+                if (!this.ctx) this.init();
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+            },
+            
+            playTone(freq, duration, type = 'sine', volume = 0.3, delay = 0) {
+                if (!this.enabled) return;
+                this.ensureContext();
+                
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                
+                osc.type = type;
+                osc.frequency.value = freq;
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                
+                const now = this.ctx.currentTime + delay;
+                gain.gain.setValueAtTime(volume, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+                
+                osc.start(now);
+                osc.stop(now + duration);
+            },
+            
+            correct() {
+                this.playTone(880, 0.1, 'sine', 0.25);
+                this.playTone(1100, 0.15, 'sine', 0.2, 0.05);
+            },
+            
+            wrong() {
+                this.playTone(200, 0.15, 'square', 0.15);
+                this.playTone(150, 0.2, 'square', 0.1, 0.1);
+            },
+            
+            tick() {
+                this.playTone(660, 0.1, 'sine', 0.3);
+            },
+            
+            gameStart() {
+                this.playTone(523, 0.1, 'sine', 0.25);
+                this.playTone(659, 0.1, 'sine', 0.25, 0.1);
+                this.playTone(784, 0.15, 'sine', 0.3, 0.2);
+            },
+            
+            levelUp() {
+                this.playTone(523, 0.08, 'sine', 0.2);
+                this.playTone(659, 0.08, 'sine', 0.2, 0.08);
+                this.playTone(784, 0.08, 'sine', 0.2, 0.16);
+                this.playTone(1047, 0.15, 'sine', 0.25, 0.24);
+            },
+            
+            victory() {
+                const notes = [523, 523, 523, 698, 880, 784, 698, 880, 1047];
+                const durations = [0.1, 0.1, 0.1, 0.3, 0.15, 0.15, 0.15, 0.15, 0.4];
+                let time = 0;
+                notes.forEach((note, i) => {
+                    this.playTone(note, durations[i], 'sine', 0.25, time);
+                    time += durations[i] * 0.8;
+                });
+            },
+            
+            uiClick() {
+                this.playTone(440, 0.05, 'sine', 0.15);
+            },
+            
+            ready() {
+                this.playTone(660, 0.1, 'sine', 0.2);
+                this.playTone(880, 0.15, 'sine', 0.25, 0.08);
+            },
+
+            playerJoin() {
+                this.playTone(523, 0.1, 'sine', 0.2);
+                this.playTone(784, 0.15, 'sine', 0.25, 0.1);
+            }
+        };
+
+        function toggleSound() {
+            SoundEngine.enabled = !SoundEngine.enabled;
+            const btn = document.getElementById('sound-toggle');
+            btn.innerText = SoundEngine.enabled ? '🔊' : '🔇';
+            btn.classList.toggle('muted', !SoundEngine.enabled);
+        }
+
+        // =====================
+        // 游戏主逻辑
+        // =====================
+        const Game = {
+            ws: null,
+            playerId: null,
+            roomId: null,
+            isReady: false,
+            gameStarted: false,
+            
+            state: {
+                A: { score: 0, level: 2 },
+                B: { score: 0, level: 2 }
+            },
+            
+            config: {
+                targetLevel: 15,
+                diffStart: 16,
+                diffMin: 1.2,
+                emojis: {
+                    success: ['🎉', '✨', '✨', '👏', '🌟', '💛'],
+                    error: ['❌', '🙅']
+                }
+            },
+
+            // 连接 WebSocket
+            connect() {
+                return new Promise((resolve, reject) => {
+                    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+                    this.ws = new WebSocket(`${protocol}//${location.host}`);
+                    
+                    this.ws.onopen = () => {
+                        this.updateConnectionStatus(true);
+                        resolve();
+                    };
+                    
+                    this.ws.onclose = () => {
+                        this.updateConnectionStatus(false);
+                    };
+                    
+                    this.ws.onerror = (e) => {
+                        this.updateConnectionStatus(false);
+                        reject(e);
+                    };
+                    
+                    this.ws.onmessage = (e) => this.handleMessage(JSON.parse(e.data));
+                });
+            },
+
+            updateConnectionStatus(connected) {
+                const dot = document.getElementById('connection-dot');
+                const text = document.getElementById('connection-text');
+                dot.className = 'connection-dot ' + (connected ? 'connected' : 'disconnected');
+                text.innerText = connected ? '已连接' : '未连接';
+            },
+
+            send(data) {
+                if (this.ws && this.ws.readyState === 1) {
+                    this.ws.send(JSON.stringify(data));
+                }
+            },
+
+            // 处理服务器消息
+            handleMessage(msg) {
+                switch (msg.type) {
+                    case 'room_created':
+                        this.roomId = msg.roomId;
+                        this.playerId = msg.playerId;
+                        this.showRoomScreen();
+                        break;
+                        
+                    case 'room_joined':
+                        this.roomId = msg.roomId;
+                        this.playerId = msg.playerId;
+                        this.showRoomScreen();
+                        // 玩家B加入时，显示玩家A已在房间
+                        document.getElementById('player-a-card').classList.remove('waiting');
+                        document.getElementById('player-a-status').innerText = '已加入';
+                        document.getElementById('player-b-card').classList.remove('waiting');
+                        document.getElementById('player-b-status').innerText = '已加入';
+                        break;
+                        
+                    case 'player_joined':
+                        SoundEngine.playerJoin();
+                        document.getElementById('player-b-card').classList.remove('waiting');
+                        document.getElementById('player-b-status').innerText = '已加入';
+                        break;
+                        
+                    case 'player_ready':
+                        const card = document.getElementById(`player-${msg.playerId.toLowerCase()}-card`);
+                        const status = document.getElementById(`player-${msg.playerId.toLowerCase()}-status`);
+                        card.classList.add('ready');
+                        status.innerText = 'READY!';
+                        status.style.color = 'var(--color-p2)';
+                        break;
+                        
+                    case 'countdown_start':
+                        this.startCountdown();
+                        break;
+                        
+                    case 'game_start':
+                        this.startGame();
+                        break;
+                        
+                    case 'opponent_score':
+                        this.updateOpponentScore(msg.playerId, msg.score, msg.level);
+                        break;
+                        
+                    case 'opponent_wrong':
+                        this.showOpponentWrong(msg.playerId);
+                        break;
+                        
+                    case 'game_over':
+                        this.endGame(msg.winner, msg.scores);
+                        break;
+                        
+                    case 'player_left':
+                        alert('对手已离开房间');
+                        location.reload();
+                        break;
+                        
+                    case 'game_reset':
+                        this.resetGame();
+                        break;
+                        
+                    case 'error':
+                        document.getElementById('join-error').innerText = msg.message;
+                        break;
+                }
+            },
+
+            // 创建房间
+            async createRoom() {
+                SoundEngine.uiClick();
+                try {
+                    await this.connect();
+                    this.send({ type: 'create_room' });
+                } catch (e) {
+                    alert('无法连接服务器');
+                }
+            },
+
+            // 显示加入界面
+            showJoinScreen() {
+                SoundEngine.uiClick();
+                document.getElementById('start-screen').style.display = 'none';
+                document.getElementById('join-screen').style.display = 'flex';
+                document.getElementById('room-input').focus();
+            },
+
+            // 加入房间
+            async joinRoom() {
+                SoundEngine.uiClick();
+                const code = document.getElementById('room-input').value.trim();
+                if (code.length !== 6) {
+                    document.getElementById('join-error').innerText = '请输入6位房间号';
+                    return;
+                }
+                
+                try {
+                    await this.connect();
+                    this.send({ type: 'join_room', roomId: code });
+                } catch (e) {
+                    document.getElementById('join-error').innerText = '无法连接服务器';
+                }
+            },
+
+            // 返回主菜单
+            backToMenu() {
+                SoundEngine.uiClick();
+                document.getElementById('join-screen').style.display = 'none';
+                document.getElementById('start-screen').style.display = 'flex';
+            },
+
+            // 显示房间界面
+            showRoomScreen() {
+                document.getElementById('start-screen').style.display = 'none';
+                document.getElementById('join-screen').style.display = 'none';
+                document.getElementById('room-screen').style.display = 'flex';
+                document.getElementById('room-code').innerText = this.roomId;
+                
+                // 标记自己的卡片
+                const myCard = document.getElementById(`player-${this.playerId.toLowerCase()}-card`);
+                myCard.classList.remove('waiting');
+                document.getElementById(`player-${this.playerId.toLowerCase()}-status`).innerText = '(你)';
+            },
+
+            // 复制房间号
+            copyRoomCode() {
+                navigator.clipboard.writeText(this.roomId).then(() => {
+                    const btn = event.target;
+                    btn.innerText = '已复制!';
+                    setTimeout(() => btn.innerText = '复制房间号', 2000);
+                });
+            },
+
+            // 准备
+            ready() {
+                if (this.isReady) return;
+                SoundEngine.ready();
+                this.isReady = true;
+                document.getElementById('ready-btn').classList.add('active');
+                this.send({ type: 'ready' });
+            },
+
+            // 开始倒计时
+            startCountdown() {
+                let count = 3;
+                const cdDisplay = document.getElementById('countdown');
+                cdDisplay.style.display = 'block';
+                cdDisplay.innerText = count;
+                SoundEngine.tick();
+                
+                const timer = setInterval(() => {
+                    count--;
+                    if (count > 0) {
+                        cdDisplay.innerText = count;
+                        SoundEngine.tick();
+                    } else {
+                        clearInterval(timer);
+                        cdDisplay.style.display = 'none';
+                    }
+                }, 800);
+            },
+
+            // 开始游戏
+            startGame() {
+                SoundEngine.gameStart();
+                this.gameStarted = true;
+                document.getElementById('room-screen').style.display = 'none';
+                
+                // 设置对手区域
+                const myArea = this.playerId === 'A' ? 'p1-area' : 'p2-area';
+                const oppArea = this.playerId === 'A' ? 'p2-area' : 'p1-area';
+                document.getElementById(oppArea).classList.add('opponent-area');
+                
+                // 渲染自己的格子
+                this.render();
+                this.renderOpponent();
+            },
+
+            // 渲染自己的游戏区域
+            render() {
+                if (!this.gameStarted) return;
+                
+                const areaId = this.playerId === 'A' ? 'p1' : 'p2';
+                const grid = document.getElementById(`${areaId}-grid`);
+                const scoreDisplay = document.getElementById(`${areaId}-score`);
+                const levelDisplay = document.getElementById(`${areaId}-level-ui`);
+                
+                const myState = this.state[this.playerId];
+                
+                grid.innerHTML = '';
+                scoreDisplay.innerText = myState.score;
+                levelDisplay.innerText = `Level ${myState.level} / ${this.config.targetLevel}`;
+                
+                const size = Math.min(myState.level, 8);
+                grid.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+                
+                const hue = Math.floor(Math.random() * 360);
+                const diff = Math.max(this.config.diffMin, this.config.diffStart - (myState.score * 0.75));
+                const mainColor = `hsl(${hue}, 70%, 50%)`;
+                const targetColor = `hsl(${hue}, 70%, ${50 + diff}%)`;
+                const targetIdx = Math.floor(Math.random() * (size * size));
+                
+                for (let i = 0; i < size * size; i++) {
+                    const tile = document.createElement('div');
+                    tile.className = 'tile';
+                    tile.style.backgroundColor = (i === targetIdx) ? targetColor : mainColor;
+                    tile.onclick = (e) => this.handleTap(i === targetIdx, e);
+                    grid.appendChild(tile);
+                }
+            },
+
+            // 渲染对手区域（模糊显示）
+            renderOpponent() {
+                const oppId = this.playerId === 'A' ? 'B' : 'A';
+                const areaId = this.playerId === 'A' ? 'p2' : 'p1';
+                const grid = document.getElementById(`${areaId}-grid`);
+                const scoreDisplay = document.getElementById(`${areaId}-score`);
+                const levelDisplay = document.getElementById(`${areaId}-level-ui`);
+                
+                const oppState = this.state[oppId];
+                
+                scoreDisplay.innerText = oppState.score;
+                levelDisplay.innerText = `Level ${oppState.level} / ${this.config.targetLevel}`;
+                
+                const size = Math.min(oppState.level, 8);
+                grid.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+                grid.innerHTML = '';
+                
+                const hue = Math.floor(Math.random() * 360);
+                const mainColor = `hsl(${hue}, 70%, 50%)`;
+                
+                for (let i = 0; i < size * size; i++) {
+                    const tile = document.createElement('div');
+                    tile.className = 'tile';
+                    tile.style.backgroundColor = mainColor;
+                    grid.appendChild(tile);
+                }
+            },
+
+            // 处理点击
+            handleTap(isCorrect, event) {
+                if (!this.gameStarted) return;
+                
+                const areaId = this.playerId === 'A' ? 'p1' : 'p2';
+                
+                if (isCorrect) {
+                    SoundEngine.correct();
+                    this.showEmoji(areaId, true, event);
+                    
+                    const myState = this.state[this.playerId];
+                    myState.score++;
+                    
+                    if (myState.score % 2 === 0) {
+                        myState.level++;
+                        if (myState.level > this.config.targetLevel) {
+                            this.send({ type: 'score', score: myState.score, level: myState.level });
+                            return;
+                        }
+                        SoundEngine.levelUp();
+                    }
+                    
+                    this.send({ type: 'score', score: myState.score, level: myState.level });
+                    this.render();
+                } else {
+                    SoundEngine.wrong();
+                    this.showEmoji(areaId, false, event);
+                    this.send({ type: 'wrong' });
+                    
+                    const grid = document.getElementById(`${areaId}-grid`);
+                    grid.classList.remove('animate-shake');
+                    void grid.offsetWidth;
+                    grid.classList.add('animate-shake');
+                }
+            },
+
+            // 更新对手分数
+            updateOpponentScore(playerId, score, level) {
+                this.state[playerId].score = score;
+                this.state[playerId].level = level;
+                this.renderOpponent();
+            },
+
+            // 显示对手错误
+            showOpponentWrong(playerId) {
+                const areaId = playerId === 'A' ? 'p1' : 'p2';
+                const grid = document.getElementById(`${areaId}-grid`);
+                grid.classList.remove('animate-shake');
+                void grid.offsetWidth;
+                grid.classList.add('animate-shake');
+            },
+
+            // 显示 emoji
+            showEmoji(areaId, isSuccess, event) {
+                const arena = document.getElementById(`${areaId}-area`);
+                const emoji = document.createElement('div');
+                emoji.className = 'emoji-feedback';
+                const emojiList = this.config.emojis[isSuccess ? 'success' : 'error'];
+                emoji.innerText = emojiList[Math.floor(Math.random() * emojiList.length)];
+                const rect = arena.getBoundingClientRect();
+                emoji.style.left = (event.clientX - rect.left - 24) + 'px';
+                emoji.style.top = (event.clientY - rect.top - 48) + 'px';
+                arena.appendChild(emoji);
+                setTimeout(() => emoji.remove(), 800);
+            },
+
+            // 结束游戏
+            endGame(winner, scores) {
+                this.gameStarted = false;
+                SoundEngine.victory();
+                
+                const result = document.getElementById('result-screen');
+                const winTag = document.getElementById('winner-tag');
+                
+                document.getElementById('final-a-score').innerText = scores.A || 0;
+                document.getElementById('final-b-score').innerText = scores.B || 0;
+                
+                if (winner === this.playerId) {
+                    winTag.innerText = "YOU WIN! 🏆";
+                    winTag.style.color = "var(--color-p2)";
+                } else {
+                    winTag.innerText = "YOU LOSE 😢";
+                    winTag.style.color = "var(--color-p1)";
+                }
+                
+                result.style.display = 'flex';
+            },
+
+            // 重新开始
+            restart() {
+                SoundEngine.uiClick();
+                this.send({ type: 'restart' });
+            },
+
+            // 重置游戏状态
+            resetGame() {
+                this.isReady = false;
+                this.gameStarted = false;
+                this.state = {
+                    A: { score: 0, level: 2 },
+                    B: { score: 0, level: 2 }
+                };
+                
+                // 重置UI
+                document.getElementById('result-screen').style.display = 'none';
+                document.getElementById('room-screen').style.display = 'flex';
+                document.getElementById('ready-btn').classList.remove('active');
+                
+                ['a', 'b'].forEach(p => {
+                    const card = document.getElementById(`player-${p}-card`);
+                    const status = document.getElementById(`player-${p}-status`);
+                    card.classList.remove('ready');
+                    status.style.color = '';
+                    status.innerText = p.toUpperCase() === this.playerId ? '(你)' : '已加入';
+                });
+                
+                // 重置游戏区域
+                document.getElementById('p1-area').classList.remove('opponent-area');
+                document.getElementById('p2-area').classList.remove('opponent-area');
+                document.getElementById('p1-grid').innerHTML = '';
+                document.getElementById('p2-grid').innerHTML = '';
+                document.getElementById('p1-score').innerText = '0';
+                document.getElementById('p2-score').innerText = '0';
+                document.getElementById('p1-level-ui').innerText = 'Level 2 / 15';
+                document.getElementById('p2-level-ui').innerText = 'Level 2 / 15';
+            }
+        };
+
+        // 回车键加入房间
+        document.getElementById('room-input').addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') Game.joinRoom();
+        });
+    </script>
+</body>
+</html>
